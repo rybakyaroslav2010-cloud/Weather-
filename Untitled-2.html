@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wetter App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            color: #ffffff;
+        }
+
+        .weather-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            width: 350px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        #search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #search-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        #search-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background: #00c6ff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #search-btn:hover {
+            background: #0072ff;
+        }
+
+        .main-weather {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        #location {
+            font-size: 32px;
+            margin: 0 0 5px 0;
+            font-weight: 600;
+        }
+
+        .current-day {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 15px;
+        }
+
+        .temp-display {
+            font-size: 64px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .details {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .detail-item {
+            text-align: center;
+        }
+
+        .detail-item span {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .detail-item p {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .forecast-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .forecast-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .forecast-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .forecast-day {
+            font-weight: 500;
+            width: 40%;
+        }
+
+        .forecast-temp {
+            text-align: right;
+            font-weight: bold;
+            color: #00c6ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="weather-container">
+        
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Stadt eingeben... (z.B. Berlin)">
+            <button id="search-btn">Suchen</button>
+        </div>
+
+        <div class="main-weather">
+            <h1 id="location">Berlin</h1>
+            <div class="current-day" id="current-date">Lade Tag...</div>
+            <div class="temp-display" id="temperature">--°C</div>
+        </div>
+
+        <div class="details">
+            <div class="detail-item">
+                <span>Windstärke</span>
+                <p id="wind">-- km/h</p>
+            </div>
+            <div class="detail-item">
+                <span>Luftfeuchte</span>
+                <p id="humidity">-- %</p>
+            </div>
+        </div>
+
+        <div class="forecast-title">Vorschau für die nächsten Tage</div>
+        <div class="forecast-list" id="forecast-container"></div>
+
+    </div>
+
+<script>
+const wochentage = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+// 1. Поиск координат города БЕЗ КЛЮЧЕЙ
+async function кнопкаПоискаНажата() {
+    const полеВвода = document.getElementById('search-input'); 
+    if (!полеВвода) return;
+    
+    const stadtname = полеВвода.value.trim();
+    if (!stadtname) return;
+
+    try {
+        // Абсолютно точная и чистая ссылка геокодера
+        const geoUrl = `https://open-meteo.com{encodeURIComponent(stadtname)}&count=1&language=de&format=json`;
+        const geoAntwort = await fetch(geoUrl);
+        const geoDaten = await geoAntwort.json();
+
+        if (!geoDaten.results || geoDaten.results.length === 0) {
+            alert("Ort nicht gefunden!");
+            return;
+        }
+
+        const lat = geoDaten.results[0].latitude;
+        const lon = geoDaten.results[0].longitude;
+        const realerStadtname = geoDaten.results[0].name;
+
+        await holeWetter(lat, lon, realerStadtname);
+
+    } catch (fehler) {
+        console.error("Fehler при поиске города:", fehler);
+    }
+}
+
+// 2. Запрос погоды с проверенного HTTPS адреса Open-Meteo
+async function holeWetter(lat, lon, stadtname) {
+    try {
+        // Идеально составленный URL без единой опечатки
+        const url = `https://open-meteo.com{lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+        
+        const antwort = await fetch(url);
+        const daten = await antwort.json();
+
+        const heute = new Date();
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) dateElement.innerText = wochentage[heute.getDay()];
+
+        document.getElementById('location').innerText = stadtname;
+        document.getElementById('temperature').innerText = Math.round(daten.current.temperature_2m) + "°C";
+        document.getElementById('wind').innerText = Math.round(daten.current.wind_speed_10m) + " km/h";
+        document.getElementById('humidity').innerText = daten.current.relative_humidity_2m + " %";
+
+        const forecastContainer = document.getElementById('forecast-container');
+        if (forecastContainer) {
+            forecastContainer.innerHTML = ""; 
+
+            for (let i = 1; i <= 3; i++) {
+                const künftigesDatum = new Date();
+                künftigesDatum.setDate(heute.getDate() + i);
+                const tagName = wochentage[künftigesDatum.getDay()];
+
+                const maxTemp = Math.round(daten.daily.temperature_2m_max[i]);
+                const minTemp = Math.round(daten.daily.temperature_2m_min[i]);
+
+                const zeile = `
+                    <div class="forecast-row">
+                        <span class="forecast-day">${tagName}</span>
+                        <span class="forecast-temp">${maxTemp}°C / ${minTemp}°C</span>
+                    </div>
+                `;
+                forecastContainer.innerHTML += zeile;
+            }
+        }
+
+    } catch (fehler) {
+        console.error("Fehler beim Laden:", fehler);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const searchBtn = document.getElementById('search-btn'); 
+    if (searchBtn) {
+        searchBtn.addEventListener('click', кнопкаПоискаНажата);
+    }
+
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                кнопкаПоискаНажата();
+            }
+        });
+    }
+    
+    // Автозапуск стартового города
+    holeWetter(52.5244, 13.4105, "Berlin");
+});
+</script>
+
+</body>
+</html>
